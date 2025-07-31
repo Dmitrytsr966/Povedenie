@@ -1,0 +1,603 @@
+# Архитектура системы имитации поведенческих факторов для Yandex
+
+
+Структура файлов v1.0 (31/07/2025)
+
+Вот такая структура предполагается для софта:
+yandex-behavioral-automation/
+├── docker/
+│   ├── Dockerfile
+│   ├── docker-compose.yml
+│   ├── nginx.conf
+│   ├── selenoid/
+│   │   ├── browsers.json
+│   │   └── video.conf
+│   └── services/
+│       ├── postgres/
+│       │   ├── init.sql
+│       │   └── schema.sql
+│       └── redis/
+│           └── redis.conf
+├── src/
+│   ├── __init__.py
+│   ├── main.py
+│   ├── core/
+│   │   ├── __init__.py
+│   │   ├── browser_manager.py          # Управление Chrome/Firefox инстансами
+│   │   ├── profile_manager.py          # Жизненный цикл профилей
+│   │   ├── proxy_manager.py            # Ротация и проверка прокси
+│   │   ├── task_scheduler.py           # Планировщик задач Celery
+│   │   ├── session_controller.py       # Контроль сессий и состояний
+│   │   └── fingerprint_engine.py       # Генерация уникальных отпечатков
+│   ├── automation/
+│   │   ├── __init__.py
+│   │   ├── search_engine.py            # Работа с Yandex поиском
+│   │   ├── behavioral_engine.py        # Имитация человеческого поведения
+│   │   ├── warmup_strategies.py        # Стратегии прогрева профилей
+│   │   ├── click_patterns.py           # Паттерны кликов и навигации
+│   │   ├── mouse_movement.py           # Естественное движение мыши
+│   │   ├── typing_patterns.py          # Человеческие паттерны ввода
+│   │   └── scroll_behavior.py          # Имитация скроллинга
+│   ├── captcha/
+│   │   ├── __init__.py
+│   │   ├── solver_manager.py           # Централизованное решение капч
+│   │   ├── providers/
+│   │   │   ├── __init__.py
+│   │   │   ├── twocaptcha.py          # 2captcha.com интеграция
+│   │   │   ├── anticaptcha.py         # anti-captcha.com интеграция
+│   │   │   ├── capmonster.py          # capmonster.cloud интеграция
+│   │   │   └── base_provider.py       # Базовый класс провайдера
+│   │   ├── detector.py                # Детекция типов капч
+│   │   └── fallback_manager.py        # Управление fallback логикой
+│   ├── ml/
+│   │   ├── __init__.py
+│   │   ├── pattern_analyzer.py         # ML анализ поведенческих паттернов
+│   │   ├── adaptive_timing.py          # Адаптивные временные интервалы
+│   │   ├── behavioral_ml.py            # ML модели поведения
+│   │   ├── anomaly_detector.py         # Детекция аномалий в поведении
+│   │   └── clustering.py               # Кластеризация профилей
+│   ├── monitoring/
+│   │   ├── __init__.py
+│   │   ├── metrics_collector.py        # Сбор метрик системы
+│   │   ├── alert_manager.py            # Система уведомлений
+│   │   ├── dashboard.py                # Web dashboard для мониторинга
+│   │   ├── health_checker.py           # Проверка здоровья сервисов
+│   │   └── performance_tracker.py      # Трекинг производительности
+│   ├── storage/
+│   │   ├── __init__.py
+│   │   ├── database.py                 # ORM и подключения к БД
+│   │   ├── models.py                   # SQLAlchemy модели
+│   │   ├── repositories.py             # Репозитории для доступа к данным
+│   │   ├── cache_manager.py            # Управление Redis кешем
+│   │   └── migrations/                 # Alembic миграции БД
+│   ├── api/
+│   │   ├── __init__.py
+│   │   ├── rest_api.py                 # FastAPI REST endpoints
+│   │   ├── websocket_api.py            # WebSocket для real-time мониторинга
+│   │   ├── auth.py                     # Аутентификация и авторизация
+│   │   └── schemas.py                  # Pydantic схемы
+│   └── utils/
+│       ├── __init__.py
+│       ├── config.py                   # Конфигурация приложения
+│       ├── logger.py                   # Настройка логирования
+│       ├── helpers.py                  # Вспомогательные функции
+│       ├── exceptions.py               # Кастомные исключения
+│       ├── constants.py                # Константы приложения
+│       └── validators.py               # Валидаторы данных
+├── configs/
+│   ├── profiles/
+│   │   ├── warmup_profiles.json        # Конфигурации профилей для прогрева
+│   │   ├── personas.json               # Демографические персоны
+│   │   ├── behavioral_patterns.json    # Шаблоны поведения
+│   │   └── device_configs.json         # Конфигурации устройств
+│   ├── proxies/
+│   │   ├── residential_pool.json       # Пул residential прокси
+│   │   ├── mobile_pool.json            # Пул мобильных прокси
+│   │   ├── datacenter_pool.json        # Резервный пул DC прокси
+│   │   └── proxy_rotation_rules.json   # Правила ротации прокси
+│   ├── queries/
+│   │   ├── warmup_queries.json         # Запросы для прогрева по категориям
+│   │   ├── seasonal_queries.json       # Сезонные запросы
+│   │   └── regional_queries.json       # Региональные запросы
+│   ├── timing/
+│   │   ├── human_patterns.json         # Паттерны человеческого поведения
+│   │   ├── session_timings.json        # Временные интервалы сессий
+│   │   └── activity_schedules.json     # Расписания активности
+│   ├── app_config.yaml                 # Основная конфигурация приложения
+│   ├── logging_config.yaml             # Конфигурация логирования
+│   └── monitoring_config.yaml          # Конфигурация мониторинга
+├── data/
+│   ├── queries/
+│   │   ├── warmup_queries.txt          # Текстовые файлы запросов
+│   │   ├── target_queries.txt          # Целевые запросы для кликов
+│   │   ├── competitor_queries.txt      # Запросы конкурентов
+│   │   └── trending_queries.txt        # Трендовые запросы
+│   ├── sites/
+│   │   ├── competitor_urls.json        # URL конкурентов для анализа
+│   │   ├── target_sites.json           # Целевые сайты для кликов
+│   │   └── blacklist_sites.json        # Заблокированные сайты
+│   ├── ml_models/
+│   │   ├── behavioral_model.pkl        # Обученная модель поведения
+│   │   ├── timing_model.pkl            # Модель временных интервалов
+│   │   └── anomaly_model.pkl           # Модель детекции аномалий
+│   ├── training_data/
+│   │   ├── human_sessions.csv          # Данные реальных сессий
+│   │   ├── mouse_movements.csv         # Данные движений мыши
+│   │   └── typing_patterns.csv         # Паттерны набора текста
+│   └── exports/
+│       ├── daily_reports/              # Ежедневные отчеты
+│       ├── session_logs/               # Логи сессий
+│       └── metrics_backup/             # Резервные копии метрик
+├── scripts/
+│   ├── setup.sh                        # Инициализация проекта
+│   ├── deploy.sh                       # Деплой в production
+│   ├── monitor.sh                      # Скрипты мониторинга
+│   ├── backup.sh                       # Резервное копирование
+│   ├── migrate.sh                      # Миграции БД
+│   ├── profile_generator.py            # Генератор профилей
+│   ├── proxy_checker.py                # Проверка прокси
+│   └── data_analyzer.py                # Анализ собранных данных
+├── tests/
+│   ├── __init__.py
+│   ├── unit/
+│   │   ├── test_browser_manager.py
+│   │   ├── test_profile_manager.py
+│   │   ├── test_behavioral_engine.py
+│   │   └── test_captcha_solver.py
+│   ├── integration/
+│   │   ├── test_full_workflow.py
+│   │   ├── test_proxy_integration.py
+│   │   └── test_captcha_integration.py
+│   ├── load/
+│   │   ├── test_concurrent_sessions.py
+│   │   ├── test_memory_usage.py
+│   │   └── test_proxy_rotation.py
+│   ├── fixtures/
+│   │   ├── sample_profiles.json
+│   │   ├── test_queries.json
+│   │   └── mock_responses.json
+│   └── conftest.py                     # Pytest конфигурация
+├── docs/
+│   ├── api_documentation.md
+│   ├── deployment_guide.md
+│   ├── configuration_guide.md
+│   └── troubleshooting.md
+├── requirements/
+│   ├── base.txt                        # Базовые зависимости
+│   ├── production.txt                  # Production зависимости
+│   ├── development.txt                 # Development зависимости
+│   └── testing.txt                     # Testing зависимости
+├── .env.example                        # Пример переменных окружения
+├── .gitignore
+├── .dockerignore
+├── requirements.txt                    # Основные requirements
+├── docker-compose.yml                  # Основной docker-compose
+├── docker-compose.override.yml         # Override для разработки
+├── Makefile                           # Команды для разработки
+└── README.md
+
+## Анализ готовых решений и компонентов
+
+### 1. Основные браузерные движки (рекомендуемые)
+
+#### undetected-chromedriver (Приоритет #1)
+- **Статус**: Проходит ВСЕ системы защиты от ботов (Distil / Imperva/ Datadadome / CloudFlare IUAM)
+- **Особенности**: Разработан для обхода антибот сервисов таких как Cloudflare, Distill Network, Imperva, или DataDome
+- **Преимущества**: Значительно менее вероятно получение бана или CAPTCHA
+- **Интеграция**: Замена стандартного Selenium ChromeDriver
+- **Docker-совместимость**: Полная
+
+#### Альтернативы для сравнения
+- **Playwright + playwright-stealth**: Разрабатывается и поддерживается Microsoft, но обнаруживается через CDP-протокол
+- **Selenium + selenium-stealth**: Устаревший подход, менее эффективен
+
+### 2. Сервисы решения капч (анализ 2025)
+
+#### Рекомендуемая иерархия провайдеров:
+
+**Tier 1 - CapMonster Cloud**
+- **Преимущества**: Высокие показатели успешности и потенциальная экономия за счет включенных прокси для определенных CAPTCHA
+- **API совместимость**: Поддерживает API Anti-Captcha (v1.0, v2.0), RuCaptcha, RipCaptcha, 2Captcha, BypassCaptcha, DeathByCaptcha
+- **Специализация**: Особенно эффективен для reCAPTCHA и Cloudflare
+
+**Tier 2 - 2Captcha**
+- **Охват**: Поддерживает 25+ типов капч, включая reCaptcha, Amazon Captcha, Cloudflare Turnstile
+- **Стоимость**: От €1 за 1,000 капч
+- **API**: Поддержка PHP, Python, C++, Java, Go, Ruby
+
+**Tier 3 - AntiCaptcha**
+- **Скорость**: Средняя скорость ответа около 7 секунд, успешность около 99%
+- **Доступность**: Глобальная сеть операторов 24/7
+
+### 3. Система fallback для решения капч
+
+```python
+# Иерархия провайдеров с автоматическим переключением
+CAPTCHA_PROVIDERS_HIERARCHY = [
+    {
+        'name': 'capmonster',
+        'priority': 1,
+        'specialization': ['recaptcha_v2', 'recaptcha_v3', 'cloudflare'],
+        'avg_time': 15,
+        'success_rate': 0.95
+    },
+    {
+        'name': '2captcha', 
+        'priority': 2,
+        'specialization': ['all_types'],
+        'avg_time': 25,
+        'success_rate': 0.92
+    },
+    {
+        'name': 'anticaptcha',
+        'priority': 3,
+        'specialization': ['recaptcha', 'funcaptcha'],
+        'avg_time': 7,
+        'success_rate': 0.99
+    }
+]
+```
+
+## Критически важные архитектурные решения
+
+### 1. Профильная система (основа успеха)
+
+#### Жизненный цикл профиля:
+```
+Создание → Прогрев (2-4 недели) → Рабочий режим → Циклический отдых → Реактивация
+```
+
+#### Ключевые параметры профиля:
+- **Браузерный fingerprint**: Canvas, WebGL, AudioContext, шрифты
+- **Поведенческий fingerprint**: Скорость печати, паттерны движения мыши
+- **Сетевой fingerprint**: TLS fingerprint, HTTP/2 fingerprint
+- **Временной fingerprint**: Часовой пояс, паттерны активности
+
+#### Критические элементы для Yandex:
+```json
+{
+  "profile_critical_params": {
+    "timezone_consistency": true,
+    "language_region_match": true,
+    "search_history_buildup": "gradual",
+    "session_timing_patterns": "human_like",
+    "device_consistency": "cross_session",
+    "ip_geolocation_match": "strict"
+  }
+}
+```
+
+### 2. Прокси-архитектура
+
+#### Рекомендуемая структура:
+- **Primary**: Residential прокси для профильных задач
+- **Secondary**: Mobile прокси для мобильного трафика (40%)
+- **Fallback**: Datacenter прокси только для технических задач
+
+#### Критические требования:
+- Географическое соответствие профилю
+- Стабильность IP в рамках сессии
+- Ротация между сессиями, НЕ внутри сессии
+- Проверка на blacklist перед использованием
+
+### 3. Система очередей и потоков
+
+#### Архитектура многопоточности:
+```
+Celery/RQ (Task Manager)
+├── Profile Manager (10 threads)
+│   ├── Thread 1-3: Warmup profiles
+│   ├── Thread 4-7: Active profiles  
+│   ├── Thread 8-9: Recovery profiles
+│   └── Thread 10: Monitoring/maintenance
+├── Proxy Pool Manager
+├── Captcha Solver Queue
+└── Metrics Collector
+```
+
+#### Критические компоненты:
+- **Session isolation**: Полная изоляция между потоками
+- **State persistence**: Сохранение состояния профилей в PostgreSQL
+- **Failure recovery**: Автоматическое восстановление после сбоев
+- **Load balancing**: Равномерное распределение нагрузки
+
+### 4. Поведенческая ML-система
+
+#### Обязательные ML-компоненты:
+- **Adaptive timing**: Адаптация временных интервалов под детекцию
+- **Mouse movement synthesis**: Генерация человекоподобных движений мыши
+- **Typing pattern mimicry**: Имитация индивидуальных паттернов печати
+- **Scroll behavior modeling**: Естественные паттерны скроллинга
+
+#### Критические модели:
+```python
+# Приоритетные ML-модели для внедрения
+ML_MODELS_PRIORITY = {
+    'timing_predictor': {
+        'purpose': 'Предсказание оптимальных интервалов между действиями',
+        'priority': 1,
+        'impact': 'высокий'
+    },
+    'anomaly_detector': {
+        'purpose': 'Обнаружение аномального поведения профиля',
+        'priority': 2, 
+        'impact': 'критический'
+    },
+    'session_optimizer': {
+        'purpose': 'Оптимизация длительности и структуры сессий',
+        'priority': 3,
+        'impact': 'средний'
+    }
+}
+```
+
+## Docker-архитектура и готовые решения
+
+### 1. Контейнеризация браузеров
+
+#### Selenoid для масштабирования:
+```yaml
+# docker-compose для Selenoid
+services:
+  selenoid:
+    image: aerokube/selenoid:latest-release
+    volumes:
+      - ./selenoid/browsers.json:/etc/selenoid/browsers.json
+      - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+      - "4444:4444"
+    
+  selenoid-ui:
+    image: aerokube/selenoid-ui:latest-release
+    ports:
+      - "8080:8080"
+```
+
+#### Преимущества Selenoid:
+- Автоматическое управление браузерными контейнерами
+- Запись видео сессий для анализа
+- Масштабирование под нагрузку
+- Изоляция браузерных процессов
+
+### 2. Готовые Docker-образы
+
+#### Рекомендуемые образы:
+```dockerfile
+# Базовый образ для автоматизации
+FROM selenoid/vnc:chrome_119.0
+# Или альтернативно
+FROM selenium/standalone-chrome:latest
+
+# Для Python-приложения
+FROM python:3.11-slim
+```
+
+### 3. Система мониторинга
+
+#### ELK Stack для логирования:
+```yaml
+services:
+  elasticsearch:
+    image: elasticsearch:8.11.0
+  
+  logstash:
+    image: logstash:8.11.0
+    
+  kibana:
+    image: kibana:8.11.0
+```
+
+#### Grafana + Prometheus для метрик:
+```yaml
+services:
+  prometheus:
+    image: prom/prometheus:latest
+    
+  grafana:
+    image: grafana/grafana:latest
+```
+
+## Специфичные для Yandex особенности
+
+### 1. Антибот-системы Yandex
+
+#### Известные системы детекции:
+- **SmartCaptcha**: Основная система Yandex
+- **Поведенческий анализ**: Анализ паттернов кликов и движений
+- **Cross-session tracking**: Отслеживание поведения между сессиями
+- **Device fingerprinting**: Продвинутые методы идентификации устройств
+
+#### Критические точки детекции:
+```python
+YANDEX_DETECTION_POINTS = {
+    'search_frequency': 'Частота поисковых запросов',
+    'click_patterns': 'Паттерны кликов по результатам',
+    'session_duration': 'Продолжительность сессий',
+    'geographic_consistency': 'Географическая согласованность',
+    'device_fingerprint': 'Отпечаток устройства',
+    'behavioral_anomalies': 'Поведенческие аномалии'
+}
+```
+
+### 2. Оптимизированные паттерны для Yandex
+
+#### Прогрев профилей (обновленная стратегия):
+```python
+YANDEX_WARMUP_STRATEGY = {
+    'week_1': {
+        'queries_per_day': (2, 4),
+        'session_duration': (60, 180),
+        'query_types': ['informational'],
+        'ctr': (0.05, 0.15)
+    },
+    'week_2_3': {
+        'queries_per_day': (4, 8),
+        'session_duration': (180, 480),
+        'query_types': ['informational', 'navigational'],
+        'ctr': (0.15, 0.25)
+    },
+    'week_4_plus': {
+        'queries_per_day': (6, 12),
+        'session_duration': (300, 900),
+        'query_types': ['all'],
+        'ctr': (0.20, 0.35)
+    }
+}
+```
+
+#### "Ласт клик" стратегия:
+```python
+LAST_CLICK_STRATEGY = {
+    'competitor_visits': (1, 3),
+    'competitor_duration': (15, 60),
+    'target_site_duration': (180, 600),
+    'additional_pages': (1, 4),
+    'no_return_probability': 0.85,
+    'session_end_delay': (300, 1800)
+}
+```
+
+## Технический стек и интеграции
+
+### 1. Core Python Stack
+```requirements
+undetected-chromedriver==3.5.5
+selenium==4.15.0
+asyncio
+aiohttp==3.9.0
+fake-useragent==1.4.0
+celery==5.3.0
+redis==5.0.0
+sqlalchemy==2.0.0
+alembic==1.12.0
+pydantic==2.5.0
+fastapi==0.104.0
+```
+
+### 2. ML/AI библиотеки
+```requirements
+scikit-learn==1.3.0
+numpy==1.24.0
+pandas==2.1.0
+tensorflow==2.13.0  # Для продвинутых моделей
+```
+
+### 3. Captcha интеграции
+```requirements
+2captcha-python==1.1.3
+anticaptcha-python==1.0.0
+capmonster-python==1.0.0
+```
+
+### 4. Мониторинг и логирование
+```requirements
+prometheus-client==0.17.0
+structlog==23.1.0
+sentry-sdk==1.32.0
+```
+
+## Критические архитектурные решения
+
+### 1. База данных профилей
+
+#### Схема данных:
+```sql
+-- Основная таблица профилей
+CREATE TABLE profiles (
+    id UUID PRIMARY KEY,
+    status VARCHAR(20), -- warmup, active, rest, banned
+    created_at TIMESTAMP,
+    last_activity TIMESTAMP,
+    warmup_stage INTEGER,
+    proxy_id UUID,
+    browser_fingerprint JSONB,
+    behavioral_metrics JSONB,
+    yandex_metrics JSONB
+);
+
+-- Таблица сессий
+CREATE TABLE sessions (
+    id UUID PRIMARY KEY,
+    profile_id UUID REFERENCES profiles(id),
+    start_time TIMESTAMP,
+    end_time TIMESTAMP,
+    queries_count INTEGER,
+    clicks_count INTEGER,
+    success BOOLEAN,
+    error_logs JSONB
+);
+```
+
+### 2. Система восстановления
+
+#### Auto-recovery компоненты:
+- **Health checker**: Проверка состояния профилей каждые 5 минут
+- **Dead process detector**: Обнаружение зависших браузерных процессов
+- **Proxy validator**: Проверка работоспособности прокси
+- **Session restorer**: Восстановление прерванных сессий
+
+### 3. Система безопасности
+
+#### Защита от детекции:
+```python
+SECURITY_MEASURES = {
+    'fingerprint_rotation': 'Каждые 7 дней',
+    'proxy_rotation': 'Между сессиями',
+    'user_agent_rotation': 'Еженедельно',
+    'timing_randomization': 'Каждое действие',
+    'behavior_variation': 'По ML-моделям',
+    'session_isolation': 'Полная изоляция'
+}
+```
+
+## Приоритеты внедрения
+
+### Этап 1 (Критический) - 2 недели
+1. **undetected-chromedriver интеграция**
+2. **Базовая система профилей**
+3. **CapMonster Cloud интеграция**
+4. **PostgreSQL schema**
+5. **Docker-compose инфраструктура**
+
+### Этап 2 (Высокий) - 2 недели  
+1. **Прокси-менеджер с ротацией**
+2. **Система прогрева профилей**
+3. **Базовое поведенческое моделирование**
+4. **Celery очереди задач**
+5. **Мониторинг и алерты**
+
+### Этап 3 (Средний) - 2-3 недели
+1. **ML-модели поведения**
+2. **Система "ласт клик"**
+3. **Продвинутая антидетект логика**
+4. **A/B тестирование стратегий**
+5. **Dashboard для управления**
+
+### Этап 4 (Оптимизация) - 1-2 недели
+1. **Performance оптимизация**
+2. **Масштабирование до 50+ потоков**
+3. **Интеграция с внешними API**
+4. **Автоматический анализ эффективности**
+5. **Документация и поддержка**
+
+## Расчет ресурсов
+
+### Серверные требования:
+- **CPU**: 8-16 cores (для 10 потоков)
+- **RAM**: 32-64 GB
+- **SSD**: 500 GB+ (для профилей и логов)
+- **Network**: Стабильное соединение 100+ Mbps
+
+### Стоимость инфраструктуры (месячно):
+- **Сервер**: $200-400
+- **Residential прокси**: $300-500
+- **Captcha solving**: $100-200  
+- **Мониторинг**: $50-100
+- **Итого**: $650-1200/месяц
+
+### ROI оценка:
+При работе с 10 потоками система может обеспечить значительное улучшение поведенческих факторов с окупаемостью через 2-3 месяца по сравнению с коммерческими решениями типа Monstro ($500+/месяц за меньший функционал).
+
+## Заключение
+
+Архитектура основана на проверенных решениях с акцентом на undetected-chromedriver как основе для обхода систем защиты и многоуровневой системе решения капч. Ключевой успех зависит от качественной реализации системы прогрева профилей и интеграции ML-моделей для естественного поведения.

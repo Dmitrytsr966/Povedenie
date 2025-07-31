@@ -1,0 +1,248 @@
+{
+  "project_structure": {
+    "description": "Файловая структура проекта автоматизации поведенческих факторов для Yandex",
+    "ai_development_notes": "Каждый файл должен быть самодостаточным с минимальными зависимостями для упрощения разработки с ИИ",
+    "files": [
+      {
+        "path": "requirements/base.txt",
+        "priority": 1,
+        "description": "Основные зависимости проекта",
+        "ai_prompt": "Создай requirements.txt со всеми необходимыми библиотеками для автоматизации браузера, работы с базой данных, асинхронного программирования и решения капч. Включи undetected-chromedriver, selenium, asyncio, sqlalchemy, celery, redis, fake-useragent, 2captcha-python, anticaptcha-python, capmonster-python.",
+        "dependencies": [],
+        "size_estimate": "small"
+      },
+      {
+        "path": "src/utils/config.py",
+        "priority": 1,
+        "description": "Конфигурационный файл с настройками",
+        "ai_prompt": "Создай конфигурационный класс Config для управления настройками приложения. Используй pydantic для валидации. Включи настройки для базы данных, Redis, прокси, капча-сервисов, браузера, логирования. Загружай из environment variables с fallback на default значения.",
+        "dependencies": [],
+        "size_estimate": "medium"
+      },
+      {
+        "path": "src/utils/logger.py", 
+        "priority": 1,
+        "description": "Система логирования",
+        "ai_prompt": "Создай систему логирования с поддержкой различных уровней (DEBUG, INFO, WARNING, ERROR). Используй structured logging с JSON форматом. Включи ротацию логов, отдельные файлы для разных компонентов (browser, captcha, proxy, database). Добавь correlation_id для отслеживания сессий.",
+        "dependencies": ["src/utils/config.py"],
+        "size_estimate": "medium"
+      },
+      {
+        "path": "src/storage/database.py",
+        "priority": 2,
+        "description": "Подключение к базе данных",
+        "ai_prompt": "Создай класс DatabaseManager для работы с PostgreSQL через SQLAlchemy. Используй async engine и sessions. Включи connection pooling, retry логику, health checks. Создай базовый CRUD класс и миграционную логику.",
+        "dependencies": ["src/utils/config.py", "src/utils/logger.py"],
+        "size_estimate": "medium"
+      },
+      {
+        "path": "src/storage/models.py",
+        "priority": 2, 
+        "description": "SQLAlchemy модели базы данных",
+        "ai_prompt": "Создай SQLAlchemy модели для профилей пользователей, сессий, прокси, статистики. Модель Profile: id, status, created_at, last_activity, warmup_stage, proxy_id, browser_fingerprint, behavioral_metrics. Модель Session: id, profile_id, start_time, end_time, queries_count, clicks_count, success, error_logs. Добавь indexes и relationships.",
+        "dependencies": ["src/storage/database.py"],
+        "size_estimate": "large"
+      },
+      {
+        "path": "src/core/browser_manager.py",
+        "priority": 2,
+        "description": "Менеджер браузерных инстансов",
+        "ai_prompt": "Создай класс BrowserManager для управления Chrome инстансами через undetected-chromedriver. Включи методы создания, перезапуска, закрытия браузеров. Добавь fingerprint randomization, proxy настройки, stealth конфигурацию. Управляй lifecycle браузеров с автоматическим перезапуском через определенное время.",
+        "dependencies": ["src/utils/config.py", "src/utils/logger.py"],
+        "size_estimate": "large"
+      },
+      {
+        "path": "src/core/proxy_manager.py",
+        "priority": 2,
+        "description": "Менеджер прокси серверов",
+        "ai_prompt": "Создай класс ProxyManager для управления пулом прокси. Включи ротацию прокси, проверку работоспособности, blacklist функционал. Поддержка HTTP/SOCKS5 прокси с аутентификацией. Метод get_proxy_for_thread() для получения прокси для конкретного потока. Статистика использования и health monitoring.",
+        "dependencies": ["src/utils/config.py", "src/utils/logger.py", "src/storage/models.py"],
+        "size_estimate": "large"
+      },
+      {
+        "path": "src/captcha/solver_manager.py",
+        "priority": 3,
+        "description": "Менеджер решения капч",
+        "ai_prompt": "Создай класс CaptchaSolverManager с поддержкой fallback между провайдерами (2captcha, anticaptcha, capmonster). Автоматический выбор провайдера по типу капчи и статистике успешности. Async методы решения, retry логика, cost tracking. Поддержка reCAPTCHA v2/v3, hCaptcha, SmartCaptcha.",
+        "dependencies": ["src/utils/config.py", "src/utils/logger.py"],
+        "size_estimate": "large"
+      },
+      {
+        "path": "src/captcha/detector.py",
+        "priority": 3,
+        "description": "Детектор типов капч",
+        "ai_prompt": "Создай класс CaptchaDetector для автоматического определения типа капчи на странице. Поиск по селекторам, анализ DOM элементов, определение провайдера капчи (Google, Cloudflare, Yandex). Возврат типа капчи и необходимых параметров для решения.",
+        "dependencies": ["src/utils/logger.py"],
+        "size_estimate": "medium"
+      },
+      {
+        "path": "src/automation/behavioral_engine.py",
+        "priority": 3,
+        "description": "Движок имитации поведения",
+        "ai_prompt": "Создай класс BehavioralEngine для имитации человеческого поведения. Включи natural mouse movements с Bezier кривыми, human-like typing patterns с вариативными скоростями, realistic scrolling behavior, natural pauses между действиями. Персонализированные паттерны для каждого профиля.",
+        "dependencies": ["src/utils/config.py", "src/utils/logger.py"],
+        "size_estimate": "large"
+      },
+      {
+        "path": "src/automation/search_engine.py",
+        "priority": 3,
+        "description": "Работа с поисковой системой Yandex", 
+        "ai_prompt": "Создай класс YandexSearchEngine для автоматизации поиска в Yandex. Методы: perform_search(), click_result(), navigate_pages(), analyze_serp(). Обработка различных типов результатов, работа с suggest, имитация естественного поведения при поиске. Интеграция с behavioral_engine для natural interactions.",
+        "dependencies": ["src/automation/behavioral_engine.py", "src/captcha/solver_manager.py"],
+        "size_estimate": "large"
+      },
+      {
+        "path": "src/core/profile_manager.py",
+        "priority": 2,
+        "description": "Менеджер профилей пользователей",
+        "ai_prompt": "Создай класс ProfileManager для управления жизненным циклом профилей. Методы создания профилей с уникальными характеристиками, управление стадиями прогрева, tracking активности, automatic profile rotation. Интеграция с базой данных для persistence. Profile health monitoring и recovery.",
+        "dependencies": ["src/storage/models.py", "src/core/browser_manager.py", "src/core/proxy_manager.py"],
+        "size_estimate": "large"
+      },
+      {
+        "path": "src/automation/warmup_strategies.py",
+        "priority": 4,
+        "description": "Стратегии прогрева профилей",
+        "ai_prompt": "Создай класс WarmupStrategy с различными стратегиями прогрева профилей для Yandex. Градуированный подход: week 1 (2-4 запроса), week 2-3 (4-8 запросов), week 4+ (6-12 запросов). Тематическое разнообразие запросов, realistic CTR progression, natural session timing. Personalized warming based на демографию профиля.",
+        "dependencies": ["src/automation/search_engine.py", "src/storage/models.py"],
+        "size_estimate": "large"
+      },
+      {
+        "path": "src/core/session_controller.py",
+        "priority": 4,
+        "description": "Контроллер сессий",
+        "ai_prompt": "Создай класс SessionController для управления пользовательскими сессиями. Lifecycle management: start_session(), maintain_session(), end_session(). Session state tracking, metrics collection, anomaly detection. Integration с profile_manager и behavioral_engine. Automatic session recovery after failures.",
+        "dependencies": ["src/core/profile_manager.py", "src/automation/behavioral_engine.py", "src/storage/models.py"],
+        "size_estimate": "large"
+      },
+      {
+        "path": "src/core/task_scheduler.py",
+        "priority": 4,
+        "description": "Планировщик задач",
+        "ai_prompt": "Создай класс TaskScheduler на базе Celery для управления очередями задач. Task types: warmup_task, search_task, maintenance_task. Priority queues, retry mechanisms, dead letter queues. Task distribution между 10 потоками. Monitoring и statistics по выполнению задач.",
+        "dependencies": ["src/utils/config.py", "src/core/session_controller.py"],
+        "size_estimate": "large"
+      },
+      {
+        "path": "src/monitoring/metrics_collector.py",
+        "priority": 5,
+        "description": "Сборщик метрик",
+        "ai_prompt": "Создай класс MetricsCollector для сбора и агрегации метрик системы. Метрики: session duration, CTR, success rate, captcha solve rate, proxy health, browser crashes. Integration с Prometheus metrics format. Real-time metrics и historical data. Alert thresholds configuration.",
+        "dependencies": ["src/utils/config.py", "src/storage/models.py"],
+        "size_estimate": "medium"
+      },
+      {
+        "path": "src/monitoring/health_checker.py",
+        "priority": 5,
+        "description": "Проверка состояния системы",
+        "ai_prompt": "Создай класс HealthChecker для мониторинга здоровья всех компонентов системы. Проверки: database connectivity, Redis availability, proxy pool health, browser instances status, disk space, memory usage. Health endpoints для внешнего мониторинга. Automatic recovery triggers.",
+        "dependencies": ["src/storage/database.py", "src/core/browser_manager.py", "src/core/proxy_manager.py"],
+        "size_estimate": "medium"
+      },
+      {
+        "path": "src/api/rest_api.py",
+        "priority": 5,
+        "description": "REST API для управления",
+        "ai_prompt": "Создай FastAPI приложение для управления системой. Endpoints: /profiles (CRUD), /sessions (monitoring), /metrics (statistics), /health (system status), /tasks (job management). Authentication middleware, request validation с Pydantic, error handling, API documentation с Swagger.", 
+        "dependencies": ["src/core/profile_manager.py", "src/monitoring/metrics_collector.py", "src/core/task_scheduler.py"],
+        "size_estimate": "large"
+      },
+      {
+        "path": "src/ml/pattern_analyzer.py",
+        "priority": 6,
+        "description": "ML анализ паттернов поведения",
+        "ai_prompt": "Создай класс PatternAnalyzer с ML алгоритмами для анализа поведенческих паттернов. Clustering profiles по поведению, anomaly detection для выявления подозрительной активности, timing optimization на основе исторических данных. Используй scikit-learn для базовых алгоритмов.",
+        "dependencies": ["src/storage/models.py", "src/utils/config.py"],
+        "size_estimate": "large"
+      },
+      {
+        "path": "main.py",
+        "priority": 1,
+        "description": "Главный файл запуска приложения",
+        "ai_prompt": "Создай main.py как entry point приложения. Инициализация всех компонентов, запуск Celery workers, graceful shutdown handling, CLI interface для управления (start, stop, status). Configuration loading, logging setup, health checks на старте.",
+        "dependencies": ["src/core/task_scheduler.py", "src/monitoring/health_checker.py", "src/api/rest_api.py"],
+        "size_estimate": "medium"
+      },
+      {
+        "path": "configs/app_config.yaml", 
+        "priority": 1,
+        "description": "Основной конфигурационный файл",
+        "ai_prompt": "Создай YAML конфигурацию с настройками по умолчанию для всех компонентов системы. Секции: database, redis, browser, proxy, captcha, logging, monitoring, behavioral_patterns, warmup_settings. Использую environment-specific overrides.",
+        "dependencies": [],
+        "size_estimate": "medium"
+      },
+      {
+        "path": "scripts/setup.py",
+        "priority": 1, 
+        "description": "Скрипт инициализации проекта",
+        "ai_prompt": "Создай setup.py для автоматической инициализации проекта. Создание виртуального окружения, установка зависимостей, настройка базы данных, создание конфигурационных файлов, проверка системных требований. Interactive setup wizard для первого запуска.",
+        "dependencies": [],
+        "size_estimate": "medium"
+      }
+    ]
+  },
+  "development_workflow": {
+    "ai_instructions": "При разработке каждого файла используй следующий подход:",
+    "steps": [
+      "1. Прочитай ai_prompt для понимания требований к файлу",
+      "2. Проверь dependencies - какие файлы должны быть готовы",
+      "3. Создай самодостаточный код с минимальными внешними зависимостями",
+      "4. Добавь comprehensive error handling и logging",
+      "5. Включи type hints для всех функций и методов",
+      "6. Добавь docstrings с примерами использования",
+      "7. Предусмотри configuration через environment variables",
+      "8. Тестируй каждый файл независимо"
+    ]
+  },
+  "priority_order": {
+    "description": "Порядок разработки файлов по приоритетам",
+    "phase_1_critical": [
+      "requirements/base.txt",
+      "src/utils/config.py", 
+      "src/utils/logger.py",
+      "configs/app_config.yaml",
+      "main.py",
+      "scripts/setup.py"
+    ],
+    "phase_2_core": [
+      "src/storage/database.py",
+      "src/storage/models.py", 
+      "src/core/browser_manager.py",
+      "src/core/proxy_manager.py",
+      "src/core/profile_manager.py"
+    ],
+    "phase_3_automation": [
+      "src/captcha/solver_manager.py",
+      "src/captcha/detector.py",
+      "src/automation/behavioral_engine.py",
+      "src/automation/search_engine.py"
+    ],
+    "phase_4_advanced": [
+      "src/automation/warmup_strategies.py",
+      "src/core/session_controller.py", 
+      "src/core/task_scheduler.py"
+    ],
+    "phase_5_monitoring": [
+      "src/monitoring/metrics_collector.py",
+      "src/monitoring/health_checker.py",
+      "src/api/rest_api.py"
+    ],
+    "phase_6_ml": [
+      "src/ml/pattern_analyzer.py"
+    ]
+  },
+  "coding_guidelines": {
+    "for_ai_development": [
+      "Каждый файл должен быть runnable независимо для тестирования",
+      "Используй абсолютные импорты где возможно",
+      "Добавляй if __name__ == '__main__': блоки для тестирования",
+      "Минимизируй circular dependencies",
+      "Используй factory patterns для создания сложных объектов",
+      "Все конфигурации загружай из environment variables",
+      "Comprehensive error handling с specific exceptions",
+      "Structured logging с correlation IDs",
+      "Type hints обязательны для всех публичных методов",
+      "Docstrings с примерами использования"
+    ]
+  }
+}
